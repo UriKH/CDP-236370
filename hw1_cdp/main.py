@@ -6,9 +6,9 @@ def main():
     # initialize layer sizes as list
     layers = [784, 128, 64, 10]
 
-    learning_rate = 0.1
-    mini_batch_size = 16
-    epochs = 5
+    learning_rate = 0.004
+    mini_batch_size = 32
+    epochs = 50
 
     # initialize training, validation and testing data
     training_data, validation_data, test_data = load_mnist()
