@@ -10,7 +10,7 @@ def max_cpu(A, B):
      np.array
          element-wise maximum between A and B
      """
-    raise NotImplementedError("To be implemented")
+    return np.array([max(a_v, b_v) for a_v, b_v in zip(A.flatten(), B.flatten())]).reshape(A.shape)
 
 
 @njit(parallel=True)
@@ -21,7 +21,11 @@ def max_numba(A, B):
      np.array
          element-wise maximum between A and B
      """
-    raise NotImplementedError("To be implemented")
+    out = np.empty_like(A)
+    for i in prange(A.shape[0]):
+        for j in prange(A.shape[1]):
+            out[i, j] = A[i, j] if A[i, j] > B[i, j] else B[i, j]
+    return out
 
 
 def max_gpu(A, B):
@@ -31,12 +35,19 @@ def max_gpu(A, B):
      np.array
          element-wise maximum between A and B
      """
-    raise NotImplementedError("To be implemented")
+    return max_kernel[*A.shape](A, B, np.zeros_like(A))
 
 
 @cuda.jit
 def max_kernel(A, B, C):
-    raise NotImplementedError("To be implemented")
+    """
+        Find the maximum value in values and store in result[0]
+        """
+    tid = cuda.threadIdx.x
+    bid = cuda.blockIdx.x
+    # bdim = cuda.blockDim.x
+    # i = (bid * bdim) + tid
+    cuda.atomic.max(C[bid, tid], A[bid, tid] , B[bid, tid])
 
 
 def verify_solution():
