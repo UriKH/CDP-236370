@@ -51,7 +51,7 @@ def matmul_kernel(A, C):
     tx = cuda.threadIdx.x
 
     for idx in range(tx, C.shape[0] * C.shape[1], 1024):
-        row = idx // C.shape[0]
+        row = idx // C.shape[1]
         col = idx % C.shape[1]
 
         s = 0

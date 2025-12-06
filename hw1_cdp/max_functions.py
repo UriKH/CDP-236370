@@ -11,7 +11,12 @@ def max_cpu(A, B):
      np.array
          element-wise maximum between A and B
      """
-    return np.array([max(a_v, b_v) for a_v, b_v in zip(A.flatten(), B.flatten())]).reshape(A.shape)
+    C = np.zeros_like(A)
+    
+    for i in range(A.shape[0]):
+        for j in range(A.shape[1]):
+            C[i, j] = max(A[i, j], B[i, j])
+    return C
 
 
 @njit(parallel=True)
