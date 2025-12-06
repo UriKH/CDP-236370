@@ -1,7 +1,7 @@
 import numpy as np
 from numba import njit, cuda, prange
 import timeit
-
+import math
 
 def matmul_transpose_trivial(X):
     R = np.zeros((X.shape[0], X.shape[0]))
@@ -31,12 +31,36 @@ def matmul_transpose_numba(X):
 
 
 def matmul_transpose_gpu(X):
-    raise NotImplementedError("To be implemented")
+
+    n = X.shape[0]
+
+    C = np.zeros((n, n))
+
+    d_X = cuda.to_device(X)
+    d_C = cuda.to_device(C)
+
+    threadsperblock = (16, 16)
+
+    blockspergrid_x = math.ceil(n / threadsperblock[0])
+    blockspergrid_y = math.ceil(n / threadsperblock[1])
+    blockspergrid = (blockspergrid_x, blockspergrid_y)
+
+    matmul_kernel[blockspergrid](d_X, d_C)
+
+    R = d_C.copy_to_host()
+
+    return R
 
 
 @cuda.jit
 def matmul_kernel(A, C):
-    raise NotImplementedError("To be implemented")
+    i, j = cuda.grid(2)
+
+    if i < C.shape[0] and j < C.shape[1]:
+        sum = 0
+        for k in range(A.shape[1]):
+            sum += A[i, k] * A[j, k]
+        C[i, j] = sum
 
 
 def verify_solution():
