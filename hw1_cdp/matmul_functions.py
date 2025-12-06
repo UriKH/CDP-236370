@@ -4,12 +4,30 @@ import timeit
 
 
 def matmul_transpose_trivial(X):
-    raise NotImplementedError("To be implemented")
+    R = np.zeros((X.shape[0], X.shape[0]))
+
+    for i in range(X.shape[0]):
+        for j in range(X.shape[0]):
+            sum = 0
+            for k in range(X.shape[1]):
+                sum += X[i, k] * X[j, k]
+            R[i, j] = sum
+
+    return R
 
 
 @njit(parallel=True)
 def matmul_transpose_numba(X):
-    raise NotImplementedError("To be implemented")
+    R = np.zeros((X.shape[0], X.shape[0]))
+
+    for i in prange(X.shape[0]):
+        for j in range(X.shape[0]):
+            sum = 0
+            for k in range(X.shape[1]):
+                sum += X[i, k] * X[j, k]
+            R[i, j] = sum
+
+    return R
 
 
 def matmul_transpose_gpu(X):
