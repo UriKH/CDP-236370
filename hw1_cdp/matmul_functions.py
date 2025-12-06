@@ -8,10 +8,10 @@ def matmul_transpose_trivial(X):
 
     for i in range(X.shape[0]):
         for j in range(X.shape[0]):
-            sum = 0
+            s = 0
             for k in range(X.shape[1]):
-                sum += X[i, k] * X[j, k]
-            R[i, j] = sum
+                s += X[i, k] * X[j, k]
+            R[i, j] = s
 
     return R
 
@@ -21,11 +21,11 @@ def matmul_transpose_numba(X):
     R = np.zeros((X.shape[0], X.shape[0]))
 
     for i in prange(X.shape[0]):
-        for j in range(X.shape[0]):
-            sum = 0
+        for j in prange(X.shape[0]):
+            s = 0
             for k in range(X.shape[1]):
-                sum += X[i, k] * X[j, k]
-            R[i, j] = sum
+                s += X[i, k] * X[j, k]
+            R[i, j] = s
 
     return R
 
@@ -39,13 +39,7 @@ def matmul_transpose_gpu(X):
     d_X = cuda.to_device(X)
     d_C = cuda.to_device(C)
 
-    threadsperblock = (16, 16)
-
-    blockspergrid_x = math.ceil(n / threadsperblock[0])
-    blockspergrid_y = math.ceil(n / threadsperblock[1])
-    blockspergrid = (blockspergrid_x, blockspergrid_y)
-
-    matmul_kernel[blockspergrid](d_X, d_C)
+    matmul_kernel[1, 1024](d_X, d_C)
 
     R = d_C.copy_to_host()
 
@@ -54,13 +48,16 @@ def matmul_transpose_gpu(X):
 
 @cuda.jit
 def matmul_kernel(A, C):
-    i, j = cuda.grid(2)
+    tx = cuda.threadIdx.x
 
-    if i < C.shape[0] and j < C.shape[1]:
-        sum = 0
+    for idx in range(tx, C.shape[0] * C.shape[1], 1024):
+        row = idx // C.shape[0]
+        col = idx % C.shape[1]
+
+        s = 0
         for k in range(A.shape[1]):
-            sum += A[i, k] * A[j, k]
-        C[i, j] = sum
+            s += A[row, k] * A[col, k]
+        C[row, col] = s
 
 
 def verify_solution():

@@ -1,6 +1,7 @@
 import numpy as np
 from numba import cuda, njit, prange, float32
 import timeit
+import math
 
 
 def max_cpu(A, B):
@@ -35,7 +36,13 @@ def max_gpu(A, B):
      np.array
          element-wise maximum between A and B
      """
-    return max_kernel[*A.shape](A, B, np.zeros_like(A))
+    d_A = cuda.to_device(A)
+    d_B = cuda.to_device(B)
+    d_C = cuda.device_array_like(A)
+    threads_per_block = 1000
+    blocks_per_grid = 1000
+    max_kernel[blocks_per_grid, threads_per_block](d_A, d_B, d_C)
+    return d_C.copy_to_host()
 
 
 @cuda.jit
@@ -43,11 +50,13 @@ def max_kernel(A, B, C):
     """
         Find the maximum value in values and store in result[0]
         """
-    tid = cuda.threadIdx.x
-    bid = cuda.blockIdx.x
-    # bdim = cuda.blockDim.x
-    # i = (bid * bdim) + tid
-    cuda.atomic.max(C[bid, tid], A[bid, tid] , B[bid, tid])
+    idx = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
+
+    if idx < A.shape[0] * A.shape[1]:
+        row = idx // A.shape[1]
+        col = idx % A.shape[1]
+
+        C[row, col] = max(A[row, col], B[row, col])
 
 
 def verify_solution():
