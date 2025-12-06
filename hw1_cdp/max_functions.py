@@ -13,9 +13,9 @@ def max_cpu(A, B):
      """
     C = np.zeros_like(A)
     
-    for i in range(A.shape[0]):                 # iterate over rows
-        for j in range(A.shape[1]):             # iterate over columns
-            C[i, j] = max(A[i, j], B[i, j])     # element-wise maximum
+    for i in range(A.shape[0]):                 # Iterate over rows
+        for j in range(A.shape[1]):             # Iterate over columns
+            C[i, j] = max(A[i, j], B[i, j])     # Element-wise maximum
     return C
 
 
@@ -27,11 +27,11 @@ def max_numba(A, B):
      np.array
          element-wise maximum between A and B
      """
-    out = np.empty_like(A)          # create output array
+    out = np.empty_like(A)          # Create output array
 
-    for i in prange(A.shape[0]):        # iterate over rows in parallel
-        for j in prange(A.shape[1]):    # iterate over columns in parallel
-            # element-wise maximum
+    for i in prange(A.shape[0]):        # Iterate over rows in parallel
+        for j in prange(A.shape[1]):    # Iterate over columns in parallel
+            # Element-wise maximum
             out[i, j] = A[i, j] if A[i, j] > B[i, j] else B[i, j]
     return out
 
@@ -64,7 +64,7 @@ def max_kernel(A, B, C):
     # Calculate global thread index
     idx = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
 
-    # check glocal index is in bounds
+    # Check glocal index is in bounds
     if idx < A.shape[0] * A.shape[1]:
         # Compute row and column from linear index
         row = idx // A.shape[1]
