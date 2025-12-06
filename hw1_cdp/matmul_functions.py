@@ -6,11 +6,13 @@ import math
 def matmul_transpose_trivial(X):
     R = np.zeros((X.shape[0], X.shape[0]))
 
+    # Iterate over all rows and columns
     for i in range(X.shape[0]):
         for j in range(X.shape[0]):
+            # calculate (X * XT)[i, j]
             s = 0
             for k in range(X.shape[1]):
-                s += X[i, k] * X[j, k]
+                s += X[i, k] * X[j, k] # XT[k, j] = X[j, k]
             R[i, j] = s
 
     return R
@@ -34,13 +36,16 @@ def matmul_transpose_gpu(X):
 
     n = X.shape[0]
 
-    C = np.zeros((n, n))
+    C = np.zeros((n, n)) # Dimensions of the answer
 
+    # Copy data to GPU
     d_X = cuda.to_device(X)
     d_C = cuda.to_device(C)
 
+    # Invoke the GPU
     matmul_kernel[1, 1024](d_X, d_C)
 
+    # Copy the answer back to the CPU
     R = d_C.copy_to_host()
 
     return R
@@ -48,12 +53,14 @@ def matmul_transpose_gpu(X):
 
 @cuda.jit
 def matmul_kernel(A, C):
-    tx = cuda.threadIdx.x
+    tx = cuda.threadIdx.x # The index of the threas (0 - 1023)
 
+    # Divide the job between the threads, each thread will work on (matrix_size/1024) cells
     for idx in range(tx, C.shape[0] * C.shape[1], 1024):
         row = idx // C.shape[1]
         col = idx % C.shape[1]
 
+        # calculate (X * XT)[row, col]
         s = 0
         for k in range(A.shape[1]):
             s += A[row, k] * A[col, k]
