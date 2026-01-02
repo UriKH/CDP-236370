@@ -9,6 +9,7 @@
 import multiprocessing
 import scipy.ndimage as sc
 import numpy as np
+import random as rd
 
 
 class Worker(multiprocessing.Process):
@@ -137,8 +138,27 @@ class Worker(multiprocessing.Process):
 		Hint: you can either generate (i.e sample randomly from the training data)
 		the image batches here OR in ip_network.create_batches
         '''
-        while not self.jobs.empty():
-            image = self.jobs.pop()
-            augmented = self.process_image(image)
-            self.result.put(augmented)
-        # TODO: use the correct methods
+        while True:
+            if self.jobs.get() is None:
+                self.jobs.task_done()
+                return
+
+            training_images, training_labels = self.training_data[0], self.training_data[1]
+            image_count, image_size = training_images.shape
+            label_size = training_labels.shape[1]
+
+            indexes = rd.sample(range(image_count), self.batch_size)
+            images, labels = (training_images[indexes], training_labels[indexes])
+
+            img_batch = np.empty(shape=(2 * self.batch_size, image_size))
+            labels_batch = np.empty(shape=(2 * self.batch_size, label_size))
+            img_batch[:self.batch_size] = images
+            labels_batch[:self.batch_size] = labels
+
+            for i in range(self.batch_size):
+                img_batch[i + self.batch_size] = self.process_image(img_batch[i])
+                labels_batch[i + self.batch_size] = labels_batch[i]
+
+            indexes = rd.sample(range(2 * self.batch_size), self.batch_size)
+            self.result.put((img_batch[indexes], labels_batch[indexes]))
+            self.jobs.task_done()

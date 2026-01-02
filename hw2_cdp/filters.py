@@ -7,9 +7,11 @@
 # and Machine Learning" course (02360370), Winter 2025
 #
 from numba import cuda
-from numba import njit
+from numba import njit, prange
 import imageio
 import matplotlib.pyplot as plt
+import numpy as np
+
 
 def correlation_gpu(kernel, image):
     '''Correlate using gpu
@@ -24,7 +26,32 @@ def correlation_gpu(kernel, image):
     ------
     An numpy array of same shape as image
     '''
-    raise NotImplementedError("To be implemented")
+    @cuda.jit
+    def apply_kernel(d_image, d_kernel, out):
+        tx = cuda.threadIdx.x
+
+        im_height, im_width = d_image.shape
+        k_size_y, k_size_x = d_kernel.shape
+        k_size_x = (k_size_x - 1) // 2
+        k_size_y = (k_size_y - 1) // 2
+
+        for ind in range(tx, im_width * im_height, cuda.blockDim.x):
+            i = ind // im_height
+            j = ind // im_width
+
+            for k in range(-k_size_y, k_size_y + 1):
+                for l in range(-k_size_x, k_size_x + 1):
+                    if i + k < 0 or j + l < 0 or i + k >= im_height or j + l >= im_width:
+                        continue
+                    out[i, j] += d_kernel[k, l] * d_image[i + k, j + l]
+
+    out = np.zeros(image.shape)
+    d_image = cuda.to_device(image)
+    d_kernel = cuda.to_device(kernel)
+
+    apply_kernel[1, 1024](d_image, d_kernel, out)
+
+    return out.copy_to_host()
 
 
 @njit
@@ -41,7 +68,25 @@ def correlation_numba(kernel, image):
     ------
     An numpy array of same shape as image
     '''
-    raise NotImplementedError("To be implemented")
+    # compute kernel dimensions from kernel center
+    k_size_y, k_size_x = kernel.shape
+    k_size_x = (k_size_x - 1) // 2
+    k_size_y = (k_size_y - 1) // 2
+
+    # prepare the correlation matrix
+    im_height, im_width = image.shape
+    correlation = np.zeros(shape=(im_height, im_width))
+
+    # compute for each pixel of the image the kernel effect
+    for i in prange(im_height):
+        for j in prange(im_width):
+            # compute for each entry in the kernel
+            for k in range(-k_size_y, k_size_y + 1):
+                for l in range(-k_size_x, k_size_x + 1):
+                    if i + k < 0 or j + l < 0 or i + k >= im_height or j + l >= im_width:
+                        continue
+                    correlation[i, j] += kernel[k, l] * image[i + k, j + l]
+    return correlation
 
 
 def sobel_operator():
@@ -54,7 +99,14 @@ def sobel_operator():
     pic = load_image()
     # your calculations
 
-    raise NotImplementedError("To be implemented")
+    sobl_kernel = np.array(
+        [[1, 0, -1],
+         [2, 0, -2],
+         [1, 0, -1]]
+    )
+    gx = correlation_numba(sobl_kernel, pic)
+    gy = correlation_numba(sobl_kernel.T, pic)
+    return np.sqrt(gx ** 2 + gy ** 2)
 
 
 def load_image(): 
