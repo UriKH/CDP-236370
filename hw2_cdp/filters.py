@@ -36,14 +36,14 @@ def correlation_gpu(kernel, image):
         k_size_y = (k_size_y - 1) // 2
 
         for ind in range(tx, im_width * im_height, cuda.blockDim.x):
-            i = ind // im_height
-            j = ind // im_width
+            i = ind // im_width
+            j = ind % im_width
 
             for k in range(-k_size_y, k_size_y + 1):
                 for l in range(-k_size_x, k_size_x + 1):
                     if i + k < 0 or j + l < 0 or i + k >= im_height or j + l >= im_width:
                         continue
-                    out[i, j] += d_kernel[k, l] * d_image[i + k, j + l]
+                    out[i, j] += d_kernel[k + k_size_y, l + k_size_x] * d_image[i + k, j + l]
 
     out = np.zeros(image.shape)
     d_image = cuda.to_device(image)
@@ -85,7 +85,7 @@ def correlation_numba(kernel, image):
                 for l in range(-k_size_x, k_size_x + 1):
                     if i + k < 0 or j + l < 0 or i + k >= im_height or j + l >= im_width:
                         continue
-                    correlation[i, j] += kernel[k, l] * image[i + k, j + l]
+                    correlation[i, j] += kernel[k + k_size_y, l + k_size_x] * image[i + k, j + l]
     return correlation
 
 

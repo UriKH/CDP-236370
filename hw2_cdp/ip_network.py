@@ -12,7 +12,7 @@ from preprocessor import Worker
 import os
 import multiprocessing as mp
 
-ON_SERVER = False
+ON_SERVER = True
 if ON_SERVER:
     CPUS = int(os.environ['SLURM_CPUS_PER_TASK'])
 else:
