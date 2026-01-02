@@ -6,7 +6,7 @@
 # "Concurrent and Distributed Programming for Data processing
 # and Machine Learning" course (02360370), Winter 2025
 #
-from hw2_cdp.my_queue import MyQueue
+from my_queue import MyQueue
 from network import *
 from preprocessor import Worker
 import os
