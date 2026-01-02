@@ -1,19 +1,19 @@
 #
-#   @date:  [TODO: Today's date]
-#   @author: [TODO: Student Names]
+#   @date:  [2.1.2026]
+#   @author: [Ofek Israel, Uri Kasher Hitin]
 #
 # This file is for the solutions of the wet part of HW2 in
 # "Concurrent and Distributed Programming for Data processing
 # and Machine Learning" course (02360370), Winter 2025
 #
 import multiprocessing
+import scipy.ndimage as sc
+import numpy as np
 
 
 class Worker(multiprocessing.Process):
     
     def __init__(self, jobs, result, training_data, batch_size):
-        super().__init__()
-
         ''' Initialize Worker and it's members.
 
         Parameters
@@ -29,7 +29,11 @@ class Worker(multiprocessing.Process):
         
         You should add parameters if you think you need to.
         '''
-        raise NotImplementedError("To be implemented")
+        super().__init__()
+        self.jobs = jobs
+        self.result = result
+        self.training_data = training_data
+        self.batch_size = batch_size
 
     @staticmethod
     def rotate(image, angle):
@@ -46,7 +50,7 @@ class Worker(multiprocessing.Process):
         ------
         An numpy array of same shape
         '''
-        raise NotImplementedError("To be implemented")
+        return sc.rotate(image, angle, reshape=False)
 
     @staticmethod
     def shift(image, dx, dy):
@@ -65,7 +69,7 @@ class Worker(multiprocessing.Process):
         ------
         An numpy array of same shape
         '''
-        raise NotImplementedError("To be implemented")
+        return sc.shift(image, (dy, dx))
     
     @staticmethod
     def add_noise(image, noise):
@@ -84,7 +88,8 @@ class Worker(multiprocessing.Process):
         ------
         An numpy array of same shape
         '''
-        raise NotImplementedError("To be implemented")
+        noise_matrix = np.random.uniform(-noise, noise, image.shape)
+        return np.minimum(np.maximum(image + noise_matrix, 0), 1)
 
     @staticmethod
     def skew(image, tilt):
@@ -101,7 +106,11 @@ class Worker(multiprocessing.Process):
         ------
         An numpy array of same shape
         '''
-        raise NotImplementedError("To be implemented")
+        def mapping(coord):
+            y, x = coord
+            return y, x + tilt * y
+
+        return sc.geometric_transform(image, mapping)
 
     def process_image(self, image):
         '''Apply the image process functions
@@ -116,11 +125,20 @@ class Worker(multiprocessing.Process):
         ------
         An numpy array of same shape
         '''
-        raise NotImplementedError("To be implemented")
+        shift = np.random.randint(-7, 7, 2)
+        shifted = self.shift(image, *shift)
+        rotated = self.rotate(shifted, np.random.randint(-20, 20))
+        noise = self.add_noise(rotated, 0.2)
+        skewed = self.skew(noise, np.random.uniform(-0.2, 0.2))
+        return skewed
 
     def run(self):
         '''Process images from the jobs queue and add the result to the result queue.
 		Hint: you can either generate (i.e sample randomly from the training data)
 		the image batches here OR in ip_network.create_batches
         '''
-        raise NotImplementedError("To be implemented")
+        while not self.jobs.empty():
+            image = self.jobs.pop()
+            augmented = self.process_image(image)
+            self.result.put(augmented)
+        # TODO: use the correct methods
