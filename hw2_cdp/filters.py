@@ -45,13 +45,12 @@ def correlation_gpu(kernel, image):
                         continue
                     out[i, j] += d_kernel[k + k_size_y, l + k_size_x] * d_image[i + k, j + l]
 
-    out = np.zeros(image.shape)
+    d_out = cuda.to_device(np.zeros(image.shape))
     d_image = cuda.to_device(image)
     d_kernel = cuda.to_device(kernel)
 
-    apply_kernel[1, 1024](d_image, d_kernel, out)
-
-    return out.copy_to_host()
+    apply_kernel[1, 1024](d_image, d_kernel, d_out)
+    return d_out.copy_to_host()
 
 
 @njit
