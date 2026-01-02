@@ -126,12 +126,13 @@ class Worker(multiprocessing.Process):
         ------
         An numpy array of same shape
         '''
+        image_2d = image.reshape((28, 28))
         shift = np.random.randint(-7, 7, 2)
-        shifted = self.shift(image, *shift)
+        shifted = self.shift(image_2d, *shift)
         rotated = self.rotate(shifted, np.random.randint(-20, 20))
         noise = self.add_noise(rotated, 0.2)
         skewed = self.skew(noise, np.random.uniform(-0.2, 0.2))
-        return skewed
+        return skewed.reshape((784,))
 
     def run(self):
         '''Process images from the jobs queue and add the result to the result queue.
