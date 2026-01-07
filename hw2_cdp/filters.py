@@ -12,6 +12,24 @@ import imageio
 import matplotlib.pyplot as plt
 import numpy as np
 
+@cuda.jit
+def apply_kernel(d_image, d_kernel, out):
+    i, j = d_image.shape
+
+    im_height, im_width = d_image.shape
+    k_size_y, k_size_x = d_kernel.shape
+    k_size_x = (k_size_x - 1) // 2
+    k_size_y = (k_size_y - 1) // 2
+
+    if i < im_height and j < im_width:
+        value = 0.0
+
+        for k in range(-k_size_y, k_size_y + 1):
+            for l in range(-k_size_x, k_size_x + 1):
+                if i + k >= 0 and i + k < im_height and j + l >= 0 and j + l < im_width:
+                    value += d_kernel[k + k_size_y, l + k_size_x] * d_image[i + k, j + l]
+
+        out[i, j] = value
 
 def correlation_gpu(kernel, image):
     '''Correlate using gpu
@@ -26,24 +44,6 @@ def correlation_gpu(kernel, image):
     ------
     An numpy array of same shape as image
     '''
-    @cuda.jit
-    def apply_kernel(d_image, d_kernel, out):
-        i, j = d_image.shape
-
-        im_height, im_width = d_image.shape
-        k_size_y, k_size_x = d_kernel.shape
-        k_size_x = (k_size_x - 1) // 2
-        k_size_y = (k_size_y - 1) // 2
-
-        if i < im_height and j < im_width:
-            value = 0.0
-
-            for k in range(-k_size_y, k_size_y + 1):
-                for l in range(-k_size_x, k_size_x + 1):
-                    if i + k >= 0 and i + k < im_height and j + l >= 0 and j + l < im_width:
-                        value += d_kernel[k + k_size_y, l + k_size_x] * d_image[i + k, j + l]
-
-            out[i, j] = value
 
     d_out = cuda.to_device(np.zeros(image.shape))
     d_image = cuda.to_device(image)
