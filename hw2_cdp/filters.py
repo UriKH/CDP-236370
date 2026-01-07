@@ -14,22 +14,23 @@ import numpy as np
 
 @cuda.jit
 def apply_kernel(d_image, d_kernel, out):
-    i, j = d_image.shape
+    tx = cuda.threadIdx.x
 
     im_height, im_width = d_image.shape
     k_size_y, k_size_x = d_kernel.shape
     k_size_x = (k_size_x - 1) // 2
     k_size_y = (k_size_y - 1) // 2
 
-    if i < im_height and j < im_width:
-        value = 0.0
+    for ind in range(tx, im_width * im_height, cuda.blockDim.x):
+        i = ind // im_width
+        j = ind % im_width
 
         for k in range(-k_size_y, k_size_y + 1):
             for l in range(-k_size_x, k_size_x + 1):
-                if i + k >= 0 and i + k < im_height and j + l >= 0 and j + l < im_width:
-                    value += d_kernel[k + k_size_y, l + k_size_x] * d_image[i + k, j + l]
+                if i + k < 0 or j + l < 0 or i + k >= im_height or j + l >= im_width:
+                    continue
+                out[i, j] += d_kernel[k + k_size_y, l + k_size_x] * d_image[i + k, j + l]
 
-        out[i, j] = value
 
 def correlation_gpu(kernel, image):
     '''Correlate using gpu
@@ -49,12 +50,7 @@ def correlation_gpu(kernel, image):
     d_image = cuda.to_device(image)
     d_kernel = cuda.to_device(kernel)
 
-    threads_per_block = (16, 16)
-    blocks_per_grid_x = (image.shape[0] + threads_per_block[0] - 1) // threads_per_block[0]
-    blocks_per_grid_y = (image.shape[1] + threads_per_block[1] - 1) // threads_per_block[1]
-    blocks_per_grid = (blocks_per_grid_x, blocks_per_grid_y)
-
-    apply_kernel[blocks_per_grid, threads_per_block](d_image, d_kernel, d_out)
+    apply_kernel[1, 1024](d_image, d_kernel, d_out)
     return d_out.copy_to_host()
 
 
