@@ -53,6 +53,6 @@ def ringallreduce(send, recv, comm, op):
         r_start, r_end = get_chunk_slices((i - 1 + size) % size, send.shape[0], size)
 
         comm.Sendrecv(
-            sendobj = recv[s_start:s_end], dest = right,
-            recvobj = recv[s_start:s_end], source = left
+            sendbuf = recv[s_start:s_end], dest = right,
+            recvbuf = recv[s_start:s_end], source = left
         )
