@@ -74,8 +74,8 @@ class AsynchronicNeuralNetwork(NeuralNetwork):
 
                 # recieve new self.weight and self.biases values from masters
                 for i in range(self.num_layers):
-                    requests.append(self.comm.Irecv(nabla_w[i], source = i % self.num_masters, tag = i))
-                    requests.append(self.comm.Irecv(nabla_b[i], source = i % self.num_masters, tag = i + self.num_layers))
+                    requests.append(self.comm.Irecv(self.weights[i], source = i % self.num_masters, tag = i))
+                    requests.append(self.comm.Irecv(self.biases[i], source = i % self.num_masters, tag = i + self.num_layers))
 
                 MPI.Request.Waitall(requests)
 
