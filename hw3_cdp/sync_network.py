@@ -29,7 +29,8 @@ class SynchronicNeuralNetwork(NeuralNetwork):
                 # summing all ma_nabla_b and ma_nabla_w to nabla_w and nabla_b
                 nabla_w = []
                 nabla_b = []
-                # TODO: add your code
+                ringallreduce(ma_nabla_w, nabla_w, comm, lambda a, b: a + b)
+                ringallreduce(ma_nabla_b, nabla_b, comm, lambda a, b: a + b)
 
                 # calculate work
                 self.weights = [w - self.eta * dw for w, dw in zip(self.weights, nabla_w)]
