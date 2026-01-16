@@ -16,17 +16,21 @@ def allreduce(send, recv, comm, op):
     """
     size = comm.Get_size()
     rank = comm.Get_rank()
+    
+    np.copyto(recv, send)
+
+    reqs = []
 
     for i in range(size):
-        if i == rank:
-            pass
-        else:
-            comm.Send(send, dest=i)
+        if i != rank:
+            req = comm.Isend(send, dest=i)
+            reqs.append(req)
 
+    temp = np.empty_like(send)
+    
     for i in range(size):
-        if i == rank:
-            pass
-        else:
-            temp = np.empty_like(send)
-            comm.Recv(temp, source=i)
-            recv = op(recv, temp)
+        if i != rank:
+            comm.Recv(temp, source=MPI.ANY_SOURCE) 
+            recv[:] = op(recv, temp)
+            
+    MPI.Request.Waitall(reqs)
