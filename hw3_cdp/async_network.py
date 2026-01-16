@@ -25,7 +25,7 @@ class AsynchronicNeuralNetwork(NeuralNetwork):
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
         self.size = self.comm.Get_size()
-		self.num_workers = self.size - self.num_masters
+        self.num_workers = self.size - self.num_masters
 
         self.layers_per_master = self.num_layers // self.num_masters
 
@@ -45,7 +45,8 @@ class AsynchronicNeuralNetwork(NeuralNetwork):
         :param training_data: a tuple of data and labels to train the NN with
         """
         # setting up the number of batches the worker should do every epoch
-        # TODO: add your code
+        number_of_batches = self.number_of_batches // self.num_workers
+        training_data = training_data[self.rank * number_of_batches: (self.rank + 1)  * number_of_batches]
 
         for epoch in range(self.epochs):
             # creating batches for epoch
@@ -58,10 +59,20 @@ class AsynchronicNeuralNetwork(NeuralNetwork):
                 nabla_b, nabla_w = self.back_prop(y)
 
                 # send nabla_b, nabla_w to masters 
-                # TODO: add your code
+                for i in range(self.num_masters):
+                    end = (i + 1) * self.layers_per_master
+                    if i == self.num_masters - 1:
+                        end = self.num_layers
+                    MPI.Send(nabla_w[i * self.layers_per_master:end], dest = i, tag = 0)
+                    MPI.Send(nabla_b[i * self.layers_per_master:end], dest = i, tag = 1)
 
                 # recieve new self.weight and self.biases values from masters
-                # TODO: add your code
+                for i in range(self.num_masters):
+                    end = (i + 1) * self.layers_per_master
+                    if i == self.num_masters - 1:
+                        end = self.num_layers
+                    MPI.Recv(self.weights[i * self.layers_per_master:end], dest = i, tag = 0)
+                    MPI.Recv(self.biases[i * self.layers_per_master:end], dest = i, tag = 1)
 
     def do_master(self, validation_data):
         """
@@ -80,7 +91,8 @@ class AsynchronicNeuralNetwork(NeuralNetwork):
 
                 # wait for any worker to finish batch and
                 # get the nabla_w, nabla_b for the master's layers
-                # TODO: add your code
+                MPI.Recv(nabla_w, source=MPI.ANY_SOURCE, tag=0)
+                MPI.Recv(nabla_b, source=MPI.ANY_SOURCE, tag=1)
 
                 # calculate new weights and biases (of layers in charge)
                 for i, dw, db in zip(range(self.rank, self.num_layers, self.num_masters), nabla_w, nabla_b):
@@ -88,9 +100,12 @@ class AsynchronicNeuralNetwork(NeuralNetwork):
                     self.biases[i] = self.biases[i] - self.eta * db
 
                 # send new values (of layers in charge)
-                # TODO: add your code
+                for i in range(self.num_workers):
+                    MPI.Send(self.weights[self.rank:self.num_layers:self.num_masters], dest=i + self.num_masters, tag=0)
+                    MPI.Send(self.biases[self.rank:self.num_layers:self.num_masters], dest=i + self.num_masters, tag=1)
 
             self.print_progress(validation_data, epoch)
 
         # gather relevant weight and biases to process 0
-        # TODO: add your code
+        MPI.Send(self.weights[self.rank:self.num_layers:self.num_masters], dest=0, tag=2)
+        MPI.Send(self.biases[self.rank:self.num_layers:self.num_masters], dest=0, tag=3)
