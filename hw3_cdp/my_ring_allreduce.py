@@ -17,28 +17,42 @@ def ringallreduce(send, recv, comm, op):
     """
     size = comm.Get_size()
     rank = comm.Get_rank()
-    blockSize = send.shape[0] // size
 
-    for i in range(size):
-        end = (i + 1) * blockSize
-        if i == size - 1:
-            end = send.shape[0]
-        comm.ISend(send[i * blockSize: end], dest=(rank + 1) % size)
-        temp = np.empty_like(send[i * blockSize: end])
-        comm.IRecv(temp, source=(rank - 1) % size)
-        endR = i * blockSize
-        if i == 0:
-            endR = send.shape[0]
-        recv[((i - 1 + size) % size) * blockSize: endR] = op(recv[((i - 1 + size) % size) * blockSize: endR], temp)
+    np.copyto(recv, send)
 
+    left = (rank - 1 + size) % size
+    right = (rank + 1) % size
+
+    def get_chunk_slices(chunk_index, total_len, comm_size):
+        base_size = total_len // comm_size
+        remainder = total_len % comm_size
+        
+        if chunk_index < remainder:
+            start = chunk_index * (base_size + 1)
+            end = start + base_size + 1
+        else:
+            start = chunk_index * base_size + remainder
+            end = start + base_size
+        return start, end
+
+    # Reduce-scatter phase
+    for i in range(size - 1):
+        s_start, s_end = get_chunk_slices(i, send.shape[0], size)
+        r_start, r_end = get_chunk_slices((i - 1 + size) % size, send.shape[0], size)
+        
+        temp = np.empty(r_end - r_start, dtype=send.dtype)
+
+        comm.Sendrecv(
+            sendobj = recv[s_start:s_end], dest = right,
+            recvobj = temp, source = left
+        )
+
+    # All-gather phase
     for i in range(size):
-        end = (i + 1) * blockSize
-        if i == size - 1:
-            end = send.shape[0]
-        comm.ISend(recv[i * blockSize: end], dest=(rank + 1) % size)
-        temp = np.empty_like(send[i * blockSize: end])
-        comm.IRecv(temp, source=(rank - 1) % size)
-        endR = i * blockSize
-        if i == 0:
-            endR = send.shape[0]
-        recv[((i - 1 + size) % size) * blockSize: endR] = op(recv[((i - 1 + size) % size) * blockSize: endR], temp)
+        s_start, s_end = get_chunk_slices(i, send.shape[0], size)
+        r_start, r_end = get_chunk_slices((i - 1 + size) % size, send.shape[0], size)
+
+        comm.Sendrecv(
+            sendobj = recv[s_start:s_end], dest = right,
+            recvobj = recv[s_start:s_end], source = left
+        )
