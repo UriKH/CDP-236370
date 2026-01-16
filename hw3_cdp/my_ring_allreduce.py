@@ -55,8 +55,8 @@ def ringallreduce(send, recv, comm, op):
     # All-gather phase
     for i in range(size - 1):
 
-        send_idx = (rank - i + size) % size
-        recv_idx = (rank - i - 1 + size) % size
+        send_idx = (rank - i + 1 + size) % size
+        recv_idx = (rank - i + size) % size
 
         s_start, s_end = get_chunk_slices(send_idx, send.shape[0], size)
         r_start, r_end = get_chunk_slices(recv_idx, send.shape[0], size)
