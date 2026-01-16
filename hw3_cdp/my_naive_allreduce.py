@@ -31,6 +31,6 @@ def allreduce(send, recv, comm, op):
     for i in range(size):
         if i != rank:
             comm.Recv(temp, source=MPI.ANY_SOURCE) 
-            recv[:] = op(recv, temp)
+            np.copyto(recv, op(recv, temp))
             
     MPI.Request.Waitall(reqs)
