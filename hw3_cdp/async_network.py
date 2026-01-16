@@ -91,6 +91,9 @@ class AsynchronicNeuralNetwork(NeuralNetwork):
             nabla_w.append(np.zeros_like(self.weights[i]))
             nabla_b.append(np.zeros_like(self.biases[i]))
 
+        if len(nabla_w) == 0:
+            return
+
         for epoch in range(self.epochs):
             for batch in range(self.number_of_batches):
 
