@@ -95,7 +95,7 @@ class AsynchronicNeuralNetwork(NeuralNetwork):
                 src = init_connect.Get_source()
                 requests = [self.comm.Irecv(nabla_b, source=src, tag=self.rank + self.num_layers)]
 
-                for l, i in zip(range(1, len(nabla_w) + 1), range(self.rank + self.num_masters, self.num_layers, self.num_masters)):
+                for l, i in zip(range(1, len(nabla_w)), range(self.rank + self.num_masters, self.num_layers, self.num_masters)):
                     requests.append(self.comm.Irecv(nabla_w[l], src=src, tag=i))
                     requests.append(self.comm.Irecv(nabla_b[l], src=src, tag=i + self.num_layers))
                 
