@@ -37,22 +37,31 @@ def ringallreduce(send, recv, comm, op):
 
     # Reduce-scatter phase
     for i in range(size - 1):
-        s_start, s_end = get_chunk_slices(i, send.shape[0], size)
-        r_start, r_end = get_chunk_slices((i - 1 + size) % size, send.shape[0], size)
-        
+
+        send_idx = (rank - i + size) % size
+        recv_idx = (rank - i - 1 + size) % size
+
+        s_start, s_end = get_chunk_slices(send_idx, send.shape[0], size)
+        r_start, r_end = get_chunk_slices(recv_idx, send.shape[0], size)
+
         temp = np.empty(r_end - r_start, dtype=send.dtype)
 
         comm.Sendrecv(
-            sendobj = recv[s_start:s_end], dest = right,
-            recvobj = temp, source = left
+            sendbuf = recv[s_start:s_end], dest = right,
+            recvbuf = temp, source = left
         )
+        recv[r_start:r_end] = op(recv[r_start:r_end], temp)
 
     # All-gather phase
-    for i in range(size):
-        s_start, s_end = get_chunk_slices(i, send.shape[0], size)
-        r_start, r_end = get_chunk_slices((i - 1 + size) % size, send.shape[0], size)
+    for i in range(size - 1):
+
+        send_idx = (rank - i + size) % size
+        recv_idx = (rank - i - 1 + size) % size
+
+        s_start, s_end = get_chunk_slices(send_idx, send.shape[0], size)
+        r_start, r_end = get_chunk_slices(recv_idx, send.shape[0], size)
 
         comm.Sendrecv(
             sendbuf = recv[s_start:s_end], dest = right,
-            recvbuf = recv[s_start:s_end], source = left
+            recvbuf = recv[r_start:r_end], source = left
         )
