@@ -52,6 +52,7 @@ print('Time reg:', stop1 - start1)
 accuracy = nn.validate(test_data) / 100.0
 print("Test Accuracy: " + str(accuracy) + "%")
 
+'''
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 if sys.argv[1] == "sync":
     start1 = time()
@@ -92,3 +93,4 @@ if sys.argv[1] == "async":
 
     accuracy = nn.validate(test_data) / 100.0
     print("Test Accuracy: " + str(accuracy) + "%")
+'''
