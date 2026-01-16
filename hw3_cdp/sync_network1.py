@@ -1,0 +1,50 @@
+from network import *
+from my_ring_allreduce import *
+import mpi4py
+
+mpi4py.rc(initialize=False, finalize=False)
+from mpi4py import MPI
+
+
+class SynchronicNeuralNetwork(NeuralNetwork):
+
+    def fit(self, training_data, validation_data=None):
+
+        if not MPI.Is_initialized():
+            MPI.Init()
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+        size = comm.Get_size()
+
+        for epoch in range(self.epochs):
+
+            data = training_data[0]
+            labels = training_data[1]
+            mini_batches = self.create_batches(data, labels, self.mini_batch_size // size)
+
+            for x, y in mini_batches:
+                # doing props
+                self.forward_prop(x)
+                ma_nabla_b, ma_nabla_w = self.back_prop(y)
+
+                # summing all ma_nabla_b and ma_nabla_w to nabla_w and nabla_b
+                nabla_w = []
+                nabla_b = []
+                # TODO: add your code
+                for layer_w, layer_b in zip(ma_nabla_w, ma_nabla_b):
+                    w_sum = np.zeros_like(layer_w)
+                    ringallreduce(layer_w, w_sum, comm, op_sum)
+                    nabla_w.append(w_sum)
+                    b_sum = np.zeros_like(layer_b)
+                    ringallreduce(layer_b, b_sum, comm, op_sum)
+                    nabla_b.append(b_sum)
+                # calculate work
+                self.weights = [w - self.eta * dw for w, dw in zip(self.weights, nabla_w)]
+                self.biases = [b - self.eta * db for b, db in zip(self.biases, nabla_b)]
+
+            self.print_progress(validation_data, epoch)
+
+        MPI.Finalize()
+
+def op_sum(x, y):
+    return x + y
