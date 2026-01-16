@@ -59,20 +59,20 @@ class AsynchronicNeuralNetwork(NeuralNetwork):
                 nabla_b, nabla_w = self.back_prop(y)
 
                 # send nabla_b, nabla_w to masters 
-                for i in range(self.num_masters):
-                    end = (i + 1) * self.layers_per_master
-                    if i == self.num_masters - 1:
-                        end = self.num_layers
-                    MPI.Send(nabla_w[i * self.layers_per_master:end], dest = i, tag = 0)
-                    MPI.Send(nabla_b[i * self.layers_per_master:end], dest = i, tag = 1)
+                requests = []
+                for i in range(self.num_layers):
+                    requests.append(self.comm.Isend(nabla_w[i], dest = i % self.num_masters, tag = i))
+                    requests.append(self.comm.Isend(nabla_b[i], dest = i % self.num_masters, tag = i + self.num_layers))
+
+                MPI.Request.Waitall(requests)
+                requests.clear()
 
                 # recieve new self.weight and self.biases values from masters
-                for i in range(self.num_masters):
-                    end = (i + 1) * self.layers_per_master
-                    if i == self.num_masters - 1:
-                        end = self.num_layers
-                    MPI.Recv(self.weights[i * self.layers_per_master:end], dest = i, tag = 0)
-                    MPI.Recv(self.biases[i * self.layers_per_master:end], dest = i, tag = 1)
+                for i in range(self.num_layers):
+                    requests.append(self.comm.Irecv(nabla_w[i], source = i % self.num_masters, tag = i))
+                    requests.append(self.comm.Irecv(nabla_b[i], source = i % self.num_masters, tag = i + self.num_layers))
+
+                MPI.Request.Waitall(requests)
 
     def do_master(self, validation_data):
         """
@@ -91,18 +91,28 @@ class AsynchronicNeuralNetwork(NeuralNetwork):
 
                 # wait for any worker to finish batch and
                 # get the nabla_w, nabla_b for the master's layers
-                MPI.Recv(nabla_w, source=MPI.ANY_SOURCE, tag=0)
-                MPI.Recv(nabla_b, source=MPI.ANY_SOURCE, tag=1)
+                init_connect = self.comm.Recv(nabla_w[self.rank], source=MPI.ANY_SOURCE, tag=self.rank)
+                src = init_connect.Get_source()
+                requests = [self.comm.Irecv(nabla_b, source=src, tag=self.rank + self.num_layers)]
 
+                for l, i in zip(range(1, len(nabla_w) + 1), range(self.rank + self.num_masters, self.num_layers, self.num_masters)):
+                    requests.append(self.comm.Irecv(nabla_w[l], src=src, tag=i))
+                    requests.append(self.comm.Irecv(nabla_b[l], src=src, tag=i + self.num_layers))
+                
+                MPI.Request.Waitall(requests)
+                requests.clear()
+                
                 # calculate new weights and biases (of layers in charge)
                 for i, dw, db in zip(range(self.rank, self.num_layers, self.num_masters), nabla_w, nabla_b):
                     self.weights[i] = self.weights[i] - self.eta * dw
                     self.biases[i] = self.biases[i] - self.eta * db
 
                 # send new values (of layers in charge)
-                for i in range(self.num_workers):
-                    MPI.Send(self.weights[self.rank:self.num_layers:self.num_masters], dest=i + self.num_masters, tag=0)
-                    MPI.Send(self.biases[self.rank:self.num_layers:self.num_masters], dest=i + self.num_masters, tag=1)
+                for i in range(self.rank, self.num_layers, self.num_masters):
+                    requests.append(self.comm.Isend(self.weights[i], dest=src, tag=i))
+                    requests.append(self.comm.Isend(self.biases[i], dest=src, tag=i + self.num_layers))
+                
+                MPI.Request.Waitall(requests)
 
             self.print_progress(validation_data, epoch)
 
