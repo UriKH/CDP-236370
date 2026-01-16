@@ -10,7 +10,7 @@ class SynchronicNeuralNetwork(NeuralNetwork):
 
     def fit(self, training_data, validation_data=None):
 
-        MPI.Init()
+        # MPI.Init()
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
         size = comm.Get_size()

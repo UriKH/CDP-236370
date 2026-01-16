@@ -12,6 +12,7 @@ def print_use():
     print("to run sync network use the command srun -K -c 4 -n X --pty python3 main.py sync")
     print("to run async network use the command srun -K  -c 4 -n X --pty python3 main.py async M")
 
+MPI.Init()
 
 num_args = len(sys.argv)
 if num_args < 2 or num_args > 3:

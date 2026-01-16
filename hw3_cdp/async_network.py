@@ -21,7 +21,7 @@ class AsynchronicNeuralNetwork(NeuralNetwork):
 
     def fit(self, training_data, validation_data=None):
         # MPI setup
-        MPI.Init()
+        # MPI.Init()
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
         self.size = self.comm.Get_size()
