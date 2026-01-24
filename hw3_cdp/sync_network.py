@@ -4,6 +4,7 @@ import mpi4py
 
 mpi4py.rc(initialize=False, finalize=False)
 from mpi4py import MPI
+import random
 
 
 class SynchronicNeuralNetwork(NeuralNetwork):
@@ -12,6 +13,7 @@ class SynchronicNeuralNetwork(NeuralNetwork):
         if not MPI.Is_initialized():
             MPI.Init()
         comm = MPI.COMM_WORLD
+        random.seed(42 + comm.Get_rank())
         size = comm.Get_size()
 
         for epoch in range(self.epochs):
