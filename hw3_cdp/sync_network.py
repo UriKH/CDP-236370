@@ -7,33 +7,30 @@ from mpi4py import MPI
 
 
 class SynchronicNeuralNetwork(NeuralNetwork):
-
     def fit(self, training_data, validation_data=None):
-
-        MPI.Init()
+        # initialize MPI if needed
+        if not MPI.Is_initialized():
+            MPI.Init()
         comm = MPI.COMM_WORLD
-        rank = comm.Get_rank()
         size = comm.Get_size()
 
         for epoch in range(self.epochs):
-
-            data = training_data[0]
-            labels = training_data[1]
-            mini_batches = self.create_batches(data, labels, self.mini_batch_size // size)
+            mini_batches = self.create_batches(training_data[0], training_data[1], self.mini_batch_size // size)
 
             for x, y in mini_batches:
-                # doing props
+                # forward and back propagaintion
                 self.forward_prop(x)
-                ma_nabla_b, ma_nabla_w = self.back_prop(y)
+                my_nabla_b, my_nabla_w = self.back_prop(y)
 
-                # summing all ma_nabla_b and ma_nabla_w to nabla_w and nabla_b
-                nabla_w = [np.empty_like(w) for w in ma_nabla_w]
-                nabla_b = [np.empty_like(b) for b in ma_nabla_b]
-                for i in range(len(ma_nabla_w)):
-                    ringallreduce(ma_nabla_w[i], nabla_w[i], comm, lambda a, b: a + b)
-                    ringallreduce(ma_nabla_b[i], nabla_b[i], comm, lambda a, b: a + b)
+                # sum gradients using ring allreduce
+                sum_op = lambda a, b: a + b
+                nabla_w = [np.empty_like(w) for w in my_nabla_w]
+                nabla_b = [np.empty_like(b) for b in my_nabla_b]
+                for i in range(len(my_nabla_w)):
+                    ringallreduce(my_nabla_w[i], nabla_w[i], comm, sum_op)
+                    ringallreduce(my_nabla_b[i], nabla_b[i], comm, sum_op)
 
-                # calculate work
+                # update weights and biases
                 self.weights = [w - self.eta * dw for w, dw in zip(self.weights, nabla_w)]
                 self.biases = [b - self.eta * db for b, db in zip(self.biases, nabla_b)]
 
